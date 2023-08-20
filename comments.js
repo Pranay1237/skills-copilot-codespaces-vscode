@@ -1,35 +1,35 @@
 // create web server
-// run server: node comments.js
-// test server: curl http://localhost:3000/comments
-// test server: curl http://localhost:3000/comments/1
-// test server: curl -X POST -d "body=foo&author=bar" http://localhost:3000/comments
-// test server: curl -X PUT -d "body=foo&author=bar" http://localhost:3000/comments/1
-// test server: curl -X DELETE http://localhost:3000/comments/1
+const express = require('express');
+const app = express();
+const bodyParser = require('body-parser');
+const axios = require('axios');
 
-var http = require('http');
-var url = require('url');
-var items = [];
+// use body-parser middleware
+app.use(bodyParser.json());
 
-var server = http.createServer(function(req, res) {
-    switch(req.method) {
-        case 'POST':
-            var item = '';
-            req.setEncoding('utf8');
-            req.on('data', function(chunk) {
-                item += chunk;
-            });
-            req.on('end', function() {
-                items.push(item);
-                res.end('OK\n');
-            });
-            break;
-        case 'GET':
-            items.forEach(function(item, i) {
-                res.write(i + ') ' + item + '\n');
-            });
-            res.end();
-            break;
-    }
+// handle post request
+app.post('/events', async (req, res) => {
+  const { type, data } = req.body;
+
+  // handle comment moderation
+  if (type === 'CommentCreated') {
+    const status = data.content.includes('orange') ? 'rejected' : 'approved';
+
+    // emit event
+    await axios.post('http://event-bus-srv:4005/events', {
+      type: 'CommentModerated',
+      data: {
+        id: data.id,
+        postId: data.postId,
+        status,
+        content: data.content,
+      },
+    });
+  }
+  res.send({});
 });
 
-server.listen(3000);
+// listen to port 4003
+app.listen(4003, () => {
+  console.log('Listening on 4003');
+});
